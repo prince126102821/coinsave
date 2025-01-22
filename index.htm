@@ -56,143 +56,139 @@
             </table>
         </div>
     </main>
-    <script src="https://apis.google.com/js/api.js"></script>
-<script>
-    const SPREADSHEET_ID = '1yj9dRIJ3TLUMjV7PF_LiOrzdlKqxcPDIIbzfgZWdQIE';
-    const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM';
-    const SHEET_RANGE = 'coinsave!A:D';
+    <script>
+        const SPREADSHEET_ID = '1yj9dRIJ3TLUMjV7PF_LiOrzdlKqxcPDIIbzfgZWdQIE';
+        const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM';
+        const SHEET_RANGE = 'coinsave!A:D';
 
-    let totalAmount = 0;
-    const coinCounts = { '1元': 0, '5元': 0, '10元': 0, '50元': 0 };
+        let totalAmount = 0;
+        const coinCounts = { '1元': 0, '5元': 0, '10元': 0, '50元': 0 };
 
-    function initClient() {
-        gapi.client.init({ apiKey: API_KEY })
-        .then(() => {
-            console.log("Google Sheets API 初始化完成");
-            return gapi.client.load('sheets', 'v4');
-        })
-        .then(() => {
-            console.log("Sheets API 載入成功");
-            getRecords();
-        })
-        .catch((error) => {
-            console.error("API 初始化失敗：", error);
-            alert("API 初始化失敗，請檢查 API 金鑰或試算表 ID。");
-        });
-    }
-
-    gapi.load("client", initClient);
-
-    async function addRecord(date, coinType, amount, isDeposit) {
-        try {
-            const total = coinType * amount * (isDeposit ? 1 : -1);
-            const values = [[date, `${coinType}元`, amount * (isDeposit ? 1 : -1), `${total}元`]];
-            coinCounts[`${coinType}元`] += isDeposit ? amount : -amount;
-            const response = await gapi.client.sheets.spreadsheets.values.append({
-                spreadsheetId: SPREADSHEET_ID,
-                range: SHEET_RANGE,
-                valueInputOption: 'RAW',
-                resource: { values },
+        function initClient() {
+            gapi.client.init({ apiKey: API_KEY })
+            .then(() => gapi.client.load('sheets', 'v4'))
+            .then(() => {
+                console.log("Google Sheets API 初始化完成");
+                getRecords();
+            })
+            .catch((error) => {
+                console.error("API 初始化失敗：", error);
+                alert("API 初始化失敗，請檢查 API 金鑰或試算表 ID。");
             });
-            console.log("新增成功：", response);
-            alert(`${isDeposit ? '存款' : '提款'}已新增！`);
-
-            // 更新表格
-            const table = document.getElementById('recordTable');
-            const newRow = table.insertRow(0); // Insert at the top
-            values[0].forEach(cell => {
-                const newCell = newRow.insertCell();
-                newCell.textContent = cell;
-            });
-            totalAmount += total;
-            document.getElementById('totalAmount').textContent = `總額：${totalAmount}元`;
-
-        } catch (error) {
-            console.error("新增紀錄失敗：", error);
-            alert(`新增紀錄失敗，錯誤訊息：${error.result.error.message}`);
         }
-    }
 
-    async function getRecords() {
-        try {
-            const response = await gapi.client.sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: SHEET_RANGE,
-            });
-            const rows = response.result.values || [];
-            const table = document.getElementById('recordTable');
-            table.innerHTML = '';
-            totalAmount = 0;
+        gapi.load("client", initClient);
 
-            // Reset coin counts
-            for (let key in coinCounts) {
-                coinCounts[key] = 0;
-            }
+        async function addRecord(date, coinType, amount, isDeposit) {
+            try {
+                const total = coinType * amount * (isDeposit ? 1 : -1);
+                const values = [[date, `${coinType}元`, amount * (isDeposit ? 1 : -1), `${total}元`]];
+                coinCounts[`${coinType}元`] += isDeposit ? amount : -amount;
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: SHEET_RANGE,
+                    valueInputOption: 'RAW',
+                    resource: { values },
+                });
 
-            rows.reverse().forEach(row => {
-                const newRow = table.insertRow(0); // Insert at the top
-                row.forEach(cell => {
+                // 更新表格
+                const table = document.getElementById('recordTable');
+                const newRow = table.insertRow(0);
+                values[0].forEach(cell => {
                     const newCell = newRow.insertCell();
                     newCell.textContent = cell;
                 });
-                const rowTotal = parseInt(row[3].replace('元', '')) || 0;
-                totalAmount += rowTotal;
+                totalAmount += total;
+                document.getElementById('totalAmount').textContent = `總額：${totalAmount}元`;
+                alert(`${isDeposit ? '存款' : '提款'}已新增！`);
+            } catch (error) {
+                console.error("新增紀錄失敗：", error);
+                const errorMessage = error?.result?.error?.message || '未知錯誤';
+                alert(`新增紀錄失敗，錯誤訊息：${errorMessage}`);
+            }
+        }
 
-                // Update coin counts
-                const coinType = row[1];
-                const amount = parseInt(row[2]) || 0;
-                if (coinCounts[coinType] !== undefined) {
-                    coinCounts[coinType] += amount;
+        async function getRecords() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: SHEET_RANGE,
+                });
+                const rows = response.result.values || [];
+                const table = document.getElementById('recordTable');
+                table.innerHTML = '';
+                totalAmount = 0;
+
+                // Reset coin counts
+                for (let key in coinCounts) {
+                    coinCounts[key] = 0;
                 }
-            });
 
-            document.getElementById('totalAmount').textContent = `總額：${totalAmount}元`;
-        } catch (error) {
-            console.error("讀取紀錄失敗：", error);
-            alert(`讀取紀錄失敗，錯誤訊息：${error.result.error.message}`);
+                rows.reverse().forEach(row => {
+                    const newRow = table.insertRow(0);
+                    row.forEach(cell => {
+                        const newCell = newRow.insertCell();
+                        newCell.textContent = cell;
+                    });
+                    const rowTotal = parseInt(row[3].replace('元', '')) || 0;
+                    totalAmount += rowTotal;
+
+                    const coinType = row[1];
+                    const amount = parseInt(row[2]) || 0;
+                    if (coinCounts[coinType] !== undefined) {
+                        coinCounts[coinType] += amount;
+                    }
+                });
+
+                document.getElementById('totalAmount').textContent = `總額：${totalAmount}元`;
+            } catch (error) {
+                console.error("讀取紀錄失敗：", error);
+                const errorMessage = error?.result?.error?.message || '未知錯誤';
+                alert(`讀取紀錄失敗，錯誤訊息：${errorMessage}`);
+            }
         }
-    }
 
-    async function clearRecords() {
-        try {
-            await gapi.client.sheets.spreadsheets.values.clear({
-                spreadsheetId: SPREADSHEET_ID,
-                range: SHEET_RANGE,
-            });
-            alert('所有資料已清除！');
-            getRecords();
-        } catch (error) {
-            console.error("清除資料失敗：", error);
-            alert(`清除資料失敗，錯誤訊息：${error.result.error.message}`);
+        async function clearRecords() {
+            try {
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: SHEET_RANGE,
+                });
+                alert('所有資料已清除！');
+                getRecords();
+            } catch (error) {
+                console.error("清除資料失敗：", error);
+                const errorMessage = error?.result?.error?.message || '未知錯誤';
+                alert(`清除資料失敗，錯誤訊息：${errorMessage}`);
+            }
         }
-    }
 
-    document.getElementById('depositButton').addEventListener('click', async () => {
-        const date = document.getElementById('date').value;
-        const coinType = parseInt(document.getElementById('coinType').value);
-        const amount = parseInt(document.getElementById('amount').value);
-        await addRecord(date, coinType, amount, true);
-        document.getElementById('savingForm').reset();
-    });
+        document.getElementById('depositButton').addEventListener('click', async () => {
+            const date = document.getElementById('date').value;
+            const coinType = parseInt(document.getElementById('coinType').value);
+            const amount = parseInt(document.getElementById('amount').value);
+            await addRecord(date, coinType, amount, true);
+            document.getElementById('savingForm').reset();
+        });
 
-    document.getElementById('withdrawButton').addEventListener('click', async () => {
-        const date = document.getElementById('date').value;
-        const coinType = parseInt(document.getElementById('coinType').value);
-        const amount = parseInt(document.getElementById('amount').value);
-        await addRecord(date, coinType, amount, false);
-        document.getElementById('savingForm').reset();
-    });
+        document.getElementById('withdrawButton').addEventListener('click', async () => {
+            const date = document.getElementById('date').value;
+            const coinType = parseInt(document.getElementById('coinType').value);
+            const amount = parseInt(document.getElementById('amount').value);
+            await addRecord(date, coinType, amount, false);
+            document.getElementById('savingForm').reset();
+        });
 
-    document.getElementById('clearButton').addEventListener('click', clearRecords);
+        document.getElementById('clearButton').addEventListener('click', clearRecords);
 
-    document.getElementById('statisticsButton').addEventListener('click', function() {
-        let message = '目前各種零錢的數量如下：\n';
-        for (const [coin, count] of Object.entries(coinCounts)) {
-            message += `${coin}: ${count} 個\n`;
-        }
-        message += `總額：${totalAmount}元`;
-        alert(message);
-    });
-</script>
+        document.getElementById('statisticsButton').addEventListener('click', function() {
+            let message = '目前各種零錢的數量如下：\n';
+            for (const [coin, count] of Object.entries(coinCounts)) {
+                message += `${coin}: ${count} 個\n`;
+            }
+            message += `總額：${totalAmount}元`;
+            alert(message);
+        });
+    </script>
 </body>
 </html>
