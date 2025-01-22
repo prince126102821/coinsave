@@ -59,7 +59,7 @@
     <script>
         const SPREADSHEET_ID = '1yj9dRIJ3TLUMjV7PF_LiOrzdlKqxcPDIIbzfgZWdQIE';
         const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM';
-        const SHEET_RANGE = '工作表1!A:D';
+        const SHEET_RANGE = '工作表1!A:D'; // 確保與你的工作表名稱一致
 
         let totalAmount = 0;
         const coinCounts = { '1元': 0, '5元': 0, '10元': 0, '50元': 0 };
@@ -84,23 +84,26 @@
                 const total = coinType * amount * (isDeposit ? 1 : -1);
                 const values = [[date, `${coinType}元`, amount * (isDeposit ? 1 : -1), `${total}元`]];
                 coinCounts[`${coinType}元`] += isDeposit ? amount : -amount;
-                await gapi.client.sheets.spreadsheets.values.append({
+
+                const response = await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
                     range: SHEET_RANGE,
-                    valueInputOption: 'RAW',
+                    valueInputOption: 'USER_ENTERED', // 使用者格式
                     resource: { values },
                 });
 
-                // 更新表格
+                console.log("新增成功：", response);
+                alert(`${isDeposit ? '存款' : '提款'}已成功新增！`);
+
                 const table = document.getElementById('recordTable');
                 const newRow = table.insertRow(0);
                 values[0].forEach(cell => {
                     const newCell = newRow.insertCell();
                     newCell.textContent = cell;
                 });
+
                 totalAmount += total;
                 document.getElementById('totalAmount').textContent = `總額：${totalAmount}元`;
-                alert(`${isDeposit ? '存款' : '提款'}已新增！`);
             } catch (error) {
                 console.error("新增紀錄失敗：", error);
                 const errorMessage = error?.result?.error?.message || '未知錯誤';
@@ -114,12 +117,12 @@
                     spreadsheetId: SPREADSHEET_ID,
                     range: SHEET_RANGE,
                 });
+
                 const rows = response.result.values || [];
                 const table = document.getElementById('recordTable');
                 table.innerHTML = '';
                 totalAmount = 0;
 
-                // Reset coin counts
                 for (let key in coinCounts) {
                     coinCounts[key] = 0;
                 }
@@ -130,6 +133,7 @@
                         const newCell = newRow.insertCell();
                         newCell.textContent = cell;
                     });
+
                     const rowTotal = parseInt(row[3].replace('元', '')) || 0;
                     totalAmount += rowTotal;
 
