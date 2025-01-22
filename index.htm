@@ -58,8 +58,8 @@
     </main>
     <script>
         const SPREADSHEET_ID = '1yj9dRIJ3TLUMjV7PF_LiOrzdlKqxcPDIIbzfgZWdQIE';
-        const CLIENT_ID = '617260742767-ngjtsdo857kpburnc3e6tp89o949fh6v.apps.googleusercontent.com'; // 替換為您的 OAuth 2.0 用戶端 ID
-        const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM'; // 替換為您的 API 金鑰
+        const CLIENT_ID = 'YOUR_CLIENT_ID'; // 替換為您的 OAuth 2.0 用戶端 ID
+        const API_KEY = 'YOUR_API_KEY'; // 替換為您的 API 金鑰
         const SHEET_RANGE = 'sheet1!A:D'; // 確保與你的工作表名稱一致
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
@@ -83,20 +83,37 @@
         }
 
         function checkAuth() {
-            const isSignedIn = gapi.auth2.getAuthInstance().isSignedIn.get();
-            if (isSignedIn) {
+            const authInstance = gapi.auth2.getAuthInstance();
+            if (!authInstance) {
+                alert("Google Auth 未正確初始化，請檢查程式碼！");
+                return;
+            }
+            if (authInstance.isSignedIn.get()) {
                 getRecords();
             } else {
-                gapi.auth2.getAuthInstance().signIn().then(() => {
+                authInstance.signIn().then(() => {
                     getRecords();
                 }).catch(error => {
                     console.error("登入失敗：", error);
-                    alert("Google 帳戶授權失敗。");
+                    alert("Google 帳戶授權失敗，請重試！");
                 });
             }
         }
 
         async function addRecord(date, coinType, amount, isDeposit) {
+            if (!date) {
+                alert("請選擇日期！");
+                return;
+            }
+            if (isNaN(coinType) || isNaN(amount) || amount <= 0) {
+                alert("請輸入有效的零錢種類和數量！");
+                return;
+            }
+            if (!isDeposit && coinCounts[`${coinType}元`] < amount) {
+                alert("提款失敗：零錢數量不足！");
+                return;
+            }
+
             try {
                 const total = coinType * amount * (isDeposit ? 1 : -1);
                 const values = [[date, `${coinType}元`, amount * (isDeposit ? 1 : -1), `${total}元`]];
@@ -170,6 +187,9 @@
         }
 
         async function clearRecords() {
+            if (!confirm("確定要清除所有資料嗎？此操作無法還原！")) {
+                return;
+            }
             try {
                 await gapi.client.sheets.spreadsheets.values.clear({
                     spreadsheetId: SPREADSHEET_ID,
