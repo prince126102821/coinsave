@@ -58,26 +58,43 @@
     </main>
     <script>
         const SPREADSHEET_ID = '1yj9dRIJ3TLUMjV7PF_LiOrzdlKqxcPDIIbzfgZWdQIE';
-        const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM';
+        const CLIENT_ID = '617260742767-ngjtsdo857kpburnc3e6tp89o949fh6v.apps.googleusercontent.com'; // 替換為您的 OAuth 2.0 用戶端 ID
+        const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM'; // 替換為您的 API 金鑰
         const SHEET_RANGE = 'sheet1!A:D'; // 確保與你的工作表名稱一致
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
         let totalAmount = 0;
         const coinCounts = { '1元': 0, '5元': 0, '10元': 0, '50元': 0 };
 
         function initClient() {
-            gapi.client.init({ apiKey: API_KEY })
-            .then(() => gapi.client.load('sheets', 'v4'))
-            .then(() => {
-                console.log("Google Sheets API 初始化完成");
-                getRecords();
-            })
-            .catch((error) => {
-                console.error("API 初始化失敗：", error);
-                alert("API 初始化失敗，請檢查 API 金鑰或試算表 ID。");
+            gapi.load('client:auth2', () => {
+                gapi.client.init({
+                    apiKey: API_KEY,
+                    clientId: CLIENT_ID,
+                    scope: SCOPES,
+                }).then(() => {
+                    console.log("Google Sheets API 初始化完成");
+                    checkAuth();
+                }).catch((error) => {
+                    console.error("API 初始化失敗：", error);
+                    alert("API 初始化失敗，請檢查 API 金鑰或用戶端 ID。");
+                });
             });
         }
 
-        gapi.load("client", initClient);
+        function checkAuth() {
+            const isSignedIn = gapi.auth2.getAuthInstance().isSignedIn.get();
+            if (isSignedIn) {
+                getRecords();
+            } else {
+                gapi.auth2.getAuthInstance().signIn().then(() => {
+                    getRecords();
+                }).catch(error => {
+                    console.error("登入失敗：", error);
+                    alert("Google 帳戶授權失敗。");
+                });
+            }
+        }
 
         async function addRecord(date, coinType, amount, isDeposit) {
             try {
@@ -88,7 +105,7 @@
                 const response = await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: SPREADSHEET_ID,
                     range: SHEET_RANGE,
-                    valueInputOption: 'USER_ENTERED', // 使用者格式
+                    valueInputOption: 'USER_ENTERED',
                     resource: { values },
                 });
 
@@ -193,6 +210,8 @@
             message += `總額：${totalAmount}元`;
             alert(message);
         });
+
+        initClient();
     </script>
 </body>
 </html>
