@@ -58,27 +58,29 @@
     </main>
     <script>
         const SPREADSHEET_ID = '1yj9dRIJ3TLUMjV7PF_LiOrzdlKqxcPDIIbzfgZWdQIE';
-        const CLIENT_ID = '617260742767-ngjtsdo857kpburnc3e6tp89o949fh6v.apps.googleusercontent.com'; // 替換為您的 OAuth 2.0 用戶端 ID
-        const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM'; // 替換為您的 API 金鑰
-        const SHEET_RANGE = 'sheet1!A:D'; // 確保與你的工作表名稱一致
+        const CLIENT_ID = '617260742767-ngjtsdo857kpburnc3e6tp89o949fh6v.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyCSQjYO3t0v15FqU5nUGQH_gr3hLDxX9CM';
+        const SHEET_RANGE = 'Sheet1!A:D'; // 確保與你的工作表名稱一致
         const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
         let totalAmount = 0;
         const coinCounts = { '1元': 0, '5元': 0, '10元': 0, '50元': 0 };
 
         function initClient() {
-            gapi.load('client:auth2', () => {
-                gapi.client.init({
-                    apiKey: API_KEY,
-                    clientId: CLIENT_ID,
-                    scope: SCOPES,
-                }).then(() => {
+            gapi.load('client:auth2', async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: API_KEY,
+                        clientId: CLIENT_ID,
+                        scope: SCOPES,
+                        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                    });
                     console.log("Google Sheets API 初始化完成");
                     checkAuth();
-                }).catch((error) => {
+                } catch (error) {
                     console.error("API 初始化失敗：", error);
                     alert("API 初始化失敗，請檢查 API 金鑰或用戶端 ID。");
-                });
+                }
             });
         }
 
@@ -88,15 +90,23 @@
                 alert("Google Auth 未正確初始化，請檢查程式碼！");
                 return;
             }
-            if (authInstance.isSignedIn.get()) {
-                getRecords();
-            } else {
-                authInstance.signIn().then(() => {
+            authInstance.isSignedIn.listen(status => {
+                if (status) {
+                    console.log("使用者已登入");
                     getRecords();
-                }).catch(error => {
-                    console.error("登入失敗：", error);
-                    alert("Google 帳戶授權失敗，請重試！");
-                });
+                } else {
+                    console.log("使用者尚未登入，提示登入...");
+                    authInstance.signIn().then(() => {
+                        getRecords();
+                    }).catch(error => {
+                        console.error("登入失敗：", error);
+                        alert("Google 帳戶授權失敗，請重試！");
+                    });
+                }
+            });
+
+            if (!authInstance.isSignedIn.get()) {
+                authInstance.signIn();
             }
         }
 
