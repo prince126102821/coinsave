@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://apis.google.com 'strict-dynamic' 'unsafe-inline'; object-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://apis.google.com 'nonce-randomString'; object-src 'none';">
     <title>零錢存錢管理</title>
     <script src="https://apis.google.com/js/api.js" defer></script>
     <link rel="stylesheet" href="styles.css">
@@ -50,6 +50,23 @@
             </table>
         </div>
     </main>
-    <script src="script.js" defer></script>
+
+    <!-- 修正 nonce 錯誤 -->
+    <script nonce="randomString">
+        fetch('script.js')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Script not found');
+                }
+                return response.text();
+            })
+            .then(scriptText => {
+                const script = document.createElement('script');
+                script.textContent = scriptText;
+                script.setAttribute('nonce', 'randomString');
+                document.body.appendChild(script);
+            })
+            .catch(error => console.error('Error loading script:', error));
+    </script>
 </body>
 </html>
